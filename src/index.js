@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { Telegraf, Scenes, session } from 'telegraf';
 import { bookingWizard } from './scenes/bookingScene.js';
+import { serviceWizard } from './scenes/serviceScene.js';
 import { registerAdminCommands } from './admin.js';
 import { scheduleReminders } from './reminders.js';
 import { getBookingsForClient, getServiceById } from './db.js';
@@ -12,7 +13,7 @@ if (!process.env.BOT_TOKEN) {
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
-const stage = new Scenes.Stage([bookingWizard]);
+const stage = new Scenes.Stage([bookingWizard, serviceWizard]);
 bot.use(session());
 bot.use(stage.middleware());
 
