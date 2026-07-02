@@ -7,7 +7,6 @@ import {
 } from '../db.js';
 import { getUpcomingDays, getFreeSlots } from '../slots.js';
 
-// ── Крок 1: вибір послуги ──────────────────────────────
 const step1_selectService = async (ctx) => {
   const services = await getServices();
   const buttons = services.map((s) =>
@@ -23,7 +22,6 @@ const step1_selectService = async (ctx) => {
   return ctx.wizard.next();
 };
 
-// ── Крок 2: вибір дати ─────────────────────────────────
 const step2_selectDate = async (ctx) => {
   if (!ctx.callbackQuery?.data?.startsWith('svc_')) {
     await ctx.reply('Будь ласка, оберіть послугу кнопкою вище.');
@@ -42,7 +40,6 @@ const step2_selectDate = async (ctx) => {
   return ctx.wizard.next();
 };
 
-// ── Крок 3: вибір часу ─────────────────────────────────
 const step3_selectTime = async (ctx) => {
   if (!ctx.callbackQuery?.data?.startsWith('date_')) {
     await ctx.reply('Будь ласка, оберіть дату кнопкою вище.');
@@ -66,7 +63,6 @@ const step3_selectTime = async (ctx) => {
   return ctx.wizard.next();
 };
 
-// ── Спільна функція: показати підсумок і кнопки підтвердження ─
 const sendConfirmationPrompt = async (ctx) => {
   const service = await getServiceById(ctx.wizard.state.serviceId);
   const { date, time, clientName, phone } = ctx.wizard.state;
@@ -86,7 +82,6 @@ const sendConfirmationPrompt = async (ctx) => {
   );
 };
 
-// ── Крок 4: ім'я (пропускаємо, якщо клієнт вже відомий) ─
 const step4_askName = async (ctx) => {
   if (!ctx.callbackQuery?.data?.startsWith('time_')) {
     await ctx.reply('Будь ласка, оберіть час кнопкою вище.');
@@ -98,12 +93,9 @@ const step4_askName = async (ctx) => {
 
   const known = await getKnownClient(ctx.from.id);
   if (known) {
-    // Клієнт вже записувався раніше — пропускаємо кроки імені й телефону
     ctx.wizard.state.clientName = known.name;
     ctx.wizard.state.phone = known.phone;
     await sendConfirmationPrompt(ctx);
-    // Явно переводимо курсор сцени на крок фіналізації (індекс 6),
-    // щоб наступне натискання кнопки обробив step7_finish, а не step5
     ctx.wizard.selectStep(6);
     return;
   }
@@ -112,7 +104,6 @@ const step4_askName = async (ctx) => {
   return ctx.wizard.next();
 };
 
-// ── Крок 5: телефон ─────────────────────────────────────
 const step5_askPhone = async (ctx) => {
   if (!ctx.message?.text) return;
   ctx.wizard.state.clientName = ctx.message.text.trim();
@@ -126,7 +117,6 @@ const step5_askPhone = async (ctx) => {
   return ctx.wizard.next();
 };
 
-// ── Крок 6: підтвердження ──────────────────────────────
 const step6_confirm = async (ctx) => {
   if (ctx.message?.contact) {
     ctx.wizard.state.phone = ctx.message.contact.phone_number;
@@ -141,7 +131,6 @@ const step6_confirm = async (ctx) => {
   return ctx.wizard.next();
 };
 
-// ── Крок 7: запис у БД + сповіщення ────────────────────
 const step7_finish = async (ctx) => {
   await ctx.answerCbQuery();
   if (ctx.callbackQuery?.data === 'confirm_no') {
@@ -165,7 +154,6 @@ const step7_finish = async (ctx) => {
       `Нагадаємо за день до візиту. До зустрічі!`
   );
 
-  // Сповіщення адміну/майстру
   const adminId = process.env.ADMIN_CHAT_ID;
   if (adminId) {
     await ctx.telegram.sendMessage(
