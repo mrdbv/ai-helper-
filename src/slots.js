@@ -39,6 +39,22 @@ export async function getFreeSlots(date, serviceId) {
   const duration = service.durationMin;
   const existing = await getBookingsForDate(date);
 
+  // Заздалегідь рахуємо реальний інтервал [початок, кінець] у хвилинах
+  // для кожного вже існуючого запису, підтягуючи тривалість ЙОГО
+  // власної послуги — а не фіксовані 60 хв, як було раніше.
+  // Це важливо: якщо перед вільним слотом стоїть запис на 90-хвилинну
+  // послугу, старий код вважав би її 60-хвилинною і показав би слот,
+  // який насправді перетинається з чужим записом.
+  const existingIntervals = await Promise.all(
+    existing.map(async (b) => {
+      const bookedService = await getServiceById(b.serviceId);
+      const [bh, bm] = b.time.split(':').map(Number);
+      const bStart = bh * 60 + bm;
+      const bEnd = bStart + bookedService.durationMin;
+      return { start: bStart, end: bEnd };
+    })
+  );
+
   const slots = [];
   let cursor = WORK_START_H * 60 + WORK_START_M;
   const endMin = WORK_END_H * 60 + WORK_END_M;
@@ -47,13 +63,9 @@ export async function getFreeSlots(date, serviceId) {
     const slotStart = cursor;
     const slotEnd = cursor + duration;
 
-    const overlaps = existing.some((b) => {
-      const [bh, bm] = b.time.split(':').map(Number);
-      const bStart = bh * 60 + bm;
-      const bService = { durationMin: 60 }; // спрощено; можна підтягнути реальну тривалість
-      const bEnd = bStart + bService.durationMin;
-      return slotStart < bEnd && slotEnd > bStart;
-    });
+    const overlaps = existingIntervals.some(
+      ({ start, end }) => slotStart < end && start < slotEnd
+    );
 
     if (!overlaps) {
       const h = String(Math.floor(slotStart / 60)).padStart(2, '0');
